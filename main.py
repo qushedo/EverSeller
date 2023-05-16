@@ -1,238 +1,461 @@
-import random
+from app import App, customtkinter
 import time
+import random
 import telebot
-import os
-import dearpygui.dearpygui as dpg
 from user_page_request import lzt_api_get_user_name
 from market_list_request import lzt_api_get_market_list
 from market_buy_account import lzt_api_buy_account
-from colorama import Fore
-from colorama import Style
+import pyglet
+from pathlib import Path
+
+pyglet.options['win32_gdi_font'] = True
+fontpath = Path(__file__).parent / 'microgrammad_boldexte.ttf'
+pyglet.font.add_file(str(fontpath))
+fontpath = Path(__file__).parent / 'CascadiaCode.ttf'
+pyglet.font.add_file(str(fontpath))
+fontpath = Path(__file__).parent / 'CascadiaMono.ttf'
+pyglet.font.add_file(str(fontpath))
+
+def _onKeyRelease(event):
+    ctrl = (event.state & 0x4) != 0
+    if event.keycode == 88 and ctrl and event.keysym.lower() != "x":
+        event.widget.event_generate("<<Cut>>")
+
+    if event.keycode == 86 and ctrl and event.keysym.lower() != "v":
+        event.widget.event_generate("<<Paste>>")
+
+    if event.keycode == 67 and ctrl and event.keysym.lower() != "c":
+        event.widget.event_generate("<<Copy>>")
 
 
-def cls():
-    os.system('cls' if os.name == 'nt' else 'clear')
+app = App()
+
+app.bind_all("<Key>", _onKeyRelease, "+")
 
 
-dpg.create_context()
-dpg.font(file="noto-mono.regular.ttf", size=14, glyph_ranges='cyrillic')
-
-
-class DataValues():
+class DataValues:
     account_amount = 0
     curr_amount = 0
     money = 0
     token = '\"SOME TOKEN\"'
     link = '\"SOME LINK\"'
-    lzt_name = []
+    lzt_name = ['', '', '', '']
     work_stage = 1
     telegram_id = -1
     balance = 0
     check = True
     TGtoken = "\"SOME TOKEN\""
     fastbuy = False
+    error_text = ''
+    request_text = ''
+    accounts = ''
     bot = None
+    toplevel_ = None
+    account_info = None
 
 
-def TGId(sender):
-    DataValues.work_stage = 1
-    dpg.configure_item(item="Button", label="[START WORK]", callback=callback_x)
+class ToplevelWindowUsername(customtkinter.CTkToplevel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.geometry("400x300")
+        self.maxsize(400, 300)
+        self.minsize(400, 300)
+        self.title("Username Checker")
+        self.textbox1 = customtkinter.CTkTextbox(self, width=300, height=220, font=app.CodeFont, text_color='gray')
+        self.textbox1.insert("0.0", "Проверьте, пожалуйста, корректность следующих данных:\n"
+                                    f"Ваш ник на форуме: {DataValues.lzt_name[0]}\n"
+                                    f"Ссылка на вашу страницу: https://zelenka.guru/{DataValues.lzt_name[1]}/\n"
+                                    f"Ваш нынешний баланс: {DataValues.balance};\n\n"
+                                    f"Если какая-либо из введённой информации неверна - нажмите на кнопку: \"Ошибка\", а затем заново введите её в соответствующем поле.")
+        self.textbox1.place(x=50, y=20)
+        self.confirm = customtkinter.CTkButton(self, text="Всё верно", command=self.confirmation, width=50,
+                                               font=app.CodeFont,
+                                               fg_color="green", hover_color="green")
+        self.confirm.place(x=50, y=250)
+        self.inconfirm = customtkinter.CTkButton(self, text="Ошибка", command=self.inconfirmation, width=50,
+                                                 font=app.CodeFont,
+                                                 fg_color="red", hover_color="red")
+        self.inconfirm.place(x=290, y=250)
+
+    def confirmation(self):
+        self.destroy()
+        check_number_2(True)
+
+    def inconfirmation(self):
+        self.destroy()
+        DataValues.error_text += "[ERROR] | Неверный токен!" \
+                                 "\n\n[CONCLUSION] | Запуск не возможен!\n\n"
+        error_log.insert(text=DataValues.error_text, index="0.0")
+        DataValues.error_text = ''
+        check_number_2(False)
+
+
+class ToplevelWindowLink(customtkinter.CTkToplevel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.geometry("400x400")
+        self.maxsize(400, 400)
+        self.minsize(400, 400)
+        self.title("Link Checker")
+        account_info = lzt_api_get_market_list(DataValues.token, DataValues.link)
+        request_log.insert("0.0",
+                           f"[REQUEST] | GET {DataValues.link.replace('lzt.market', 'api.lzt.market')}\n[RESULT] | \"[TOO BIG]\"\n\n")
+        self.textbox1 = customtkinter.CTkTextbox(self, width=300, height=300, font=app.CodeFont, text_color='gray')
+        if account_info is None or account_info.get("totalItems") == 0:
+            self.textbox1.insert("0.0",
+                                 "На форуме не существует товаров, соответствующих предоставленному фильтру \ Произошла ошибка запроса из-за неверной ссылки или токена пользователя.\n\n"
+                                 f"Если какая-либо из введённой информации неверна - нажмите на кнопку: \"Ошибка\", а затем заново введите её в соответствующем поле.")
+        else:
+            item = account_info.get("items")[
+                random.randint(0, min(account_info.get("totalItems"),
+                                      account_info.get("perPage")) - 1)]
+            request_log.insert("0.0",
+                               f"[SEMI-RESULT] | \"[{item}]\"\n\n")
+            self.textbox1.insert("0.0",
+                                 "Перед вами описание случайного товара с первой страницы товаров, соответствующих вашему фильтру:\n"
+                                 f"Название товара: {item.get('title')}\n"
+                                 f"Ссылка на страницу товара: https://zelenka.guru/{item.get('item_id')}/\n"
+                                 f"Происхождение товара: {item.get('item_origin')}\n"
+                                 f"Цена товара: {item.get('price')};\n\n"
+                                 f"Если какая-либо из введённой информации неверна - нажмите на кнопку: \"Ошибка\", а затем заново введите её в соответствующем поле.")
+        self.textbox1.place(x=50, y=20)
+        self.confirm = customtkinter.CTkButton(self, text="Всё верно", command=self.confirmation, width=50,
+                                               font=app.CodeFont,
+                                               fg_color="green", hover_color="green")
+        self.confirm.place(x=50, y=350)
+        self.inconfirm = customtkinter.CTkButton(self, text="Ошибка", command=self.inconfirmation, width=50,
+                                                 font=app.CodeFont,
+                                                 fg_color="red", hover_color="red")
+        self.inconfirm.place(x=290, y=350)
+        print(1)
+
+    def confirmation(self):
+        self.destroy()
+        check_number_3(True)
+
+    def inconfirmation(self):
+        self.destroy()
+        DataValues.error_text += "[ERROR] | Неверный токен или ссылка!" \
+                                 "\n\n[CONCLUSION] | Запуск не возможен!\n\n"
+        error_log.insert(text=DataValues.error_text, index="0.0")
+        DataValues.error_text = ''
+        check_number_3(False)
+
+
+for c in range(10):
+    app.columnconfigure(index=c, weight=1)
+for r in range(20):
+    app.rowconfigure(index=r, weight=1)
+
+program_name = customtkinter.CTkLabel(master=app, text=" | NEVERSELLER" * 10, bg_color="transparent", font=app.NameFont)
+program_del = customtkinter.CTkLabel(master=app, text="-" * 1000, bg_color="transparent", font=app.NameFont)
+program_del.place(x=0, y=20)
+program_name.grid(row=0, column=0, columnspan=10, sticky="n")
+
+program_name1 = customtkinter.CTkLabel(master=app, text=" | V 1.4.0" * 20, bg_color="transparent",
+                                       font=app.NameFont)
+program_del1 = customtkinter.CTkLabel(master=app, text="-" * 1000, bg_color="transparent", font=app.NameFont)
+program_del1.grid(row=19, column=1, columnspan=10, sticky="s")
+program_name1.grid(row=20, column=1, columnspan=10, sticky="s")
+
+request_log = customtkinter.CTkTextbox(app, width=400, height=380, font=app.CodeFont, text_color='gray')
+request_log.grid(row=16, column=1, columnspan=3, sticky='ns', padx=10)
+request_label = customtkinter.CTkLabel(master=app, text="Request Logs", bg_color="transparent",
+                                       font=app.Name2Font)
+request_label.grid(row=16, column=1, columnspan=3, sticky="s", padx=30)
+
+account_links = customtkinter.CTkTextbox(app, width=300, height=180, font=app.CodeFont, text_color='green')
+account_links.grid(row=16, column=4, columnspan=2, sticky='n', padx=10)
+account_label = customtkinter.CTkLabel(master=app, text="Account Links", bg_color="transparent",
+                                       font=app.Name2Font)
+account_label.grid(row=16, column=4, columnspan=2, padx=30, sticky="n", pady=155)
+
+error_log = customtkinter.CTkTextbox(app, width=300, height=180, font=app.CodeFont, text_color='red')
+error_log.grid(row=16, column=4, columnspan=2, sticky='s', padx=10)
+account_label = customtkinter.CTkLabel(master=app, text="Error Logs", bg_color="transparent",
+                                       font=app.Name2Font)
+account_label.grid(row=16, column=4, columnspan=2, padx=30, sticky="s")
+
+lolz_label = customtkinter.CTkLabel(master=app, text="Токен с LOLZ:", bg_color="transparent",
+                                    font=app.CodeFont)
+lolz_label.grid(row=16, column=6, columnspan=2, sticky="nw", padx=5)
+lolz_token = customtkinter.CTkEntry(app, placeholder_text="LOLZ Token", font=app.CodeFont, width=300)
+lolz_token.grid(row=16, column=7, columnspan=3, sticky="n", padx=30)
+
+lolz_link_label = customtkinter.CTkLabel(master=app, text="Ссылка-Фильтр:", bg_color="transparent",
+                                         font=app.CodeFont)
+lolz_link_label.grid(row=16, column=6, columnspan=2, sticky="nw", pady=40, padx=5)
+lolz_link = customtkinter.CTkEntry(app, placeholder_text="Account Filter Link", font=app.CodeFont, width=300)
+lolz_link.grid(row=16, column=7, columnspan=3, sticky="n", pady=40, padx=30)
+
+TG_id_label = customtkinter.CTkLabel(master=app, text="Telegram ID:", bg_color="transparent",
+                                     font=app.CodeFont)
+TG_id_label.grid(row=16, column=6, columnspan=2, sticky="nw", pady=80, padx=5)
+TG_id = customtkinter.CTkEntry(app, placeholder_text="Telegram ID", font=app.CodeFont, width=300)
+TG_id.grid(row=16, column=7, columnspan=3, sticky="n", pady=80, padx=30)
+
+TG_token_label = customtkinter.CTkLabel(master=app, text="Telegram Token:", bg_color="transparent",
+                                        font=app.CodeFont)
+TG_token_label.grid(row=16, column=6, columnspan=2, sticky="nw", pady=120, padx=5)
+TG_token = customtkinter.CTkEntry(app, placeholder_text="Telegram Bot Token", font=app.CodeFont, width=300)
+TG_token.grid(row=16, column=7, columnspan=3, sticky="n", pady=120, padx=30)
+
+
+def fast_slow_callback(value):
+    DataValues.fastbuy = not DataValues.fastbuy
+
+
+fs_buy = customtkinter.CTkSegmentedButton(app, values=["SLOW-BUY", "FAST-BUY"],
+                                          command=fast_slow_callback, selected_color="gray", border_width=5,
+                                          width=300, dynamic_resizing=True, selected_hover_color="gray",
+                                          font=app.CodeFont)
+fs_buy.set("SLOW-BUY")
+
+fs_buy.grid(row=16, column=6, columnspan=2, sticky="n", pady=180, padx=5)
+
+
+def b_check_callback(value):
+    DataValues.check = not DataValues.check
+
+
+b_check = customtkinter.CTkSegmentedButton(app, values=["FULL CHECK", "NO CHECK"],
+                                           command=b_check_callback, selected_color="gray", border_width=5,
+                                           width=400, dynamic_resizing=True, selected_hover_color="gray",
+                                           font=app.CodeFont)
+b_check.set("FULL CHECK")
+
+b_check.grid(row=16, column=8, columnspan=3, sticky="nw", pady=180, padx=0)
+
+
+def account_amount_callback(value):
+    account_amo = value
+    if value:
+        progressbar_all.configure(determinate_speed=float(50) / value)
+    else:
+        progressbar_all.configure(determinate_speed=float(50))
+    DataValues.account_amount = value
+    account_amount_amo.configure(text=f"[{str(value)[:-2]}]")
+
+
+account_amount = customtkinter.CTkSlider(app, from_=0, to=100, command=account_amount_callback, number_of_steps=100,
+                                         width=200, button_color="gray", button_hover_color="white",
+                                         progress_color="gray",
+                                         )
+account_amount.place(relx=0.71, rely=0.58)
+account_amount.set(0)
+account_amount_label = customtkinter.CTkLabel(master=app, text="Аккаунты:", bg_color="transparent",
+                                              font=app.CodeFont)
+account_amount_label.place(relx=0.564, rely=0.565)
+account_amount_amo = customtkinter.CTkLabel(master=app, text="[0]", bg_color="transparent",
+                                            font=app.CodeFont, text_color="gray")
+account_amount_amo.place(relx=0.655, rely=0.565)
+
+
+def beautiful_step_anim(obj, time1):
+    origin_speed = obj.cget("determinate_speed")
+    step = float(obj.cget("determinate_speed")) / 100
+    obj.configure(determinate_speed=step)
+    time_to_go = float(time1) / 100
+    for i in range(0, 100):
+        obj.step()
+        time.sleep(time_to_go)
+        app.update()
+    obj.configure(determinate_speed=origin_speed)
+
+
+toplevel_ = None
+
+
+def disable_everything():
+    lolz_token.configure(state="disabled")
+    lolz_link.configure(state="disabled")
+    fs_buy.configure(state="disabled")
+    b_check.configure(state="disabled")
+    TG_id.configure(state="disabled")
+    TG_token.configure(state="disabled")
+    button.configure(state="disabled")
+    account_amount.configure(state="disabled")
+
+
+def enable_everything():
+    lolz_token.configure(state="normal")
+    lolz_link.configure(state="normal")
+    fs_buy.configure(state="normal")
+    b_check.configure(state="normal")
+    TG_id.configure(state="normal")
+    TG_token.configure(state="normal")
+    button.configure(state="normal")
+    account_amount.configure(state="normal")
+
+
+def start_event():
+    error_log.delete("0.0", "end")
+    DataValues.token = lolz_token.get()
+    DataValues.link = lolz_link.get()
+    DataValues.telegram_id = TG_id.get()
+    DataValues.TGtoken = TG_token.get()
+    check = True
+    if DataValues.token == '':
+        DataValues.error_text += "[ERROR] | Отсутствует LOLZ Токен;\n"
+        check = False
+    if DataValues.link == '':
+        DataValues.error_text += "[ERROR] | Отсутствует Фильтр-Ссылка;\n"
+        check = False
+    if DataValues.telegram_id == '':
+        DataValues.error_text += "[ERROR] | Отсутствует Telegram ID;\n"
+        check = False
+    if DataValues.TGtoken == '':
+        DataValues.error_text += "[ERROR] | Отсутствует Токен Telegram Бота;\n"
+        check = False
+    if not check:
+        DataValues.error_text += "\n[CONCLUSION] | Запуск не возможен!\n\n"
+        error_log.insert(text=DataValues.error_text, index="0.0")
+        DataValues.error_text = ''
+        return
+
+    if DataValues.account_amount == 0:
+        DataValues.error_text += "[ERROR] | Выбрано 0 аккаунтов для покупки!" \
+                                 "\n\n[CONCLUSION] | Запуск не возможен!\n\n"
+        error_log.insert(text=DataValues.error_text, index="0.0")
+        DataValues.error_text = ''
+        return
+
     try:
-        DataValues.telegram_id = int(dpg.get_value(sender))
+        DataValues.bot = telebot.TeleBot(DataValues.TGtoken)
     except:
-        dpg.set_value("Checker", "[TELEGRAM ID SHOULD BE A NUMBER]")
-        return
-    dpg.set_value("Checker", "[ERROR LOG]")
-
-
-def Token(sender):
-    DataValues.work_stage = 1
-    dpg.configure_item(item="Button", label="[START WORK]", callback=callback_x)
-    DataValues.token = dpg.get_value(sender)
-    if DataValues.token != '\"SOME TOKEN\"':
-        dpg.set_value("Checker", "[ERROR LOG]")
+        DataValues.error_text += "[ERROR] | Бота с данным токеном не сущестует / Вы не подключены к интернету!" \
+                                 "\n\n[CONCLUSION] | Запуск не возможен!\n\n"
+        error_log.insert(text=DataValues.error_text, index="0.0")
+        DataValues.error_text = ''
         return
 
-
-def TGToken(sender):
-    DataValues.work_stage = 1
-    dpg.configure_item(item="Button", label="[START WORK]", callback=callback_x)
-    DataValues.TGtoken = dpg.get_value(sender)
-    if DataValues.token != '\"SOME TOKEN\"':
-        dpg.set_value("Checker", "[ERROR LOG]")
+    try:
+        DataValues.bot.send_message(chat_id=DataValues.telegram_id,
+                                    text=f"<b>Данное сообщение служит для проверки корректности введённого токена бота и Telegram ID.\n</b>"
+                                         f"<i>Если вам пришло данное сообщение, то это означает, что всё работает корректно.</i>\n\n"
+                                         f"<code>[NeverSeller v1.4.0]</code>",
+                                    parse_mode='HTML')
+    except:
+        DataValues.error_text += "[ERROR] | Бота с данным токеном не сущестует / Вы не подключены к интернету!" \
+                                 "\n\n[CONCLUSION] | Запуск не возможен!\n\n"
+        error_log.insert(text=DataValues.error_text, index="0.0")
+        DataValues.error_text = ''
         return
 
+    DataValues.error_text += "[WARNING] | Пожалуйста, проверьте, свой Telegram аккаунт! Вам должно прийти сообщение от вашего бота. Если оно пришло - всё работает корректно, иначе - остановите работу программы и введите данные заново.\n\n"
+    error_log.insert(text=DataValues.error_text, index="0.0")
+    DataValues.error_text = ''
 
-def Link(sender):
-    DataValues.work_stage = 1
-    dpg.set_value("Checker", "[ERROR LOG]")
-    DataValues.link = dpg.get_value(sender)
+    DataValues.lzt_name = lzt_api_get_user_name(DataValues.token)
+    DataValues.balance = DataValues.lzt_name[2]
+    request_log.insert("0.0", f"[REQUEST] | GET https://api.lzt.market/me\n[RESULT] | \"{DataValues.lzt_name[3]}\"\n\n")
+
+    if DataValues.lzt_name[0] == "WRONG TOKEN / ERROR":
+        DataValues.error_text += "[ERROR] | Неверный токен / Ошибка парса аккаунта / Вы не подключены к интернету!" \
+                                 "\n\n[CONCLUSION] | Запуск не возможен!\n\n"
+        error_log.insert(text=DataValues.error_text, index="0.0")
+        DataValues.error_text = ''
+        return
+
+    if DataValues.check:
+        if DataValues.toplevel_ is None or not DataValues.toplevel_.winfo_exists():
+            DataValues.toplevel_ = ToplevelWindowUsername(app)
+        DataValues.toplevel_.focus()
+    else:
+        check_number_2(True)
+    return
 
 
-def print_val(sender):
-    value = dpg.get_value(sender)
-    DataValues.eff = value[0]
-    DataValues.time = value[1]
+def check_number_2(username_correct):
+    if username_correct:
+        disable_everything()
+    else:
+        return
+    if DataValues.check:
+        for i in range(0, 3):
+            beautiful_step_anim(progressbar_request, 0.7)
+            time.sleep(0.3)
+        progressbar_request.set(0)
+        if DataValues.toplevel_ is None or not DataValues.toplevel_.winfo_exists():
+            DataValues.toplevel_ = ToplevelWindowLink(app)
+        DataValues.toplevel_.focus()
+        return
+    else:
+        check_number_3(True)
+    return
 
 
-def account(sender):
-    DataValues.account_amount = dpg.get_value(sender)
+def check_number_3(link_correct):
+    if link_correct:
+        for i in range(0, 3):
+            beautiful_step_anim(progressbar_request, 0.7)
+            time.sleep(0.3)
+
+    else:
+        enable_everything()
+        return
+    working()
 
 
-def callback_y(sender):
-    DataValues.work_stage = 1
-
-
-def working(sender):
-    dpg.configure_item(item="Button", label="[WORKING]", callback=None)
+def working():
+    button.configure(text="WORKING")
     while DataValues.curr_amount < DataValues.account_amount:
-        time.sleep(3)
+        for i in range(0, 3):
+            beautiful_step_anim(progressbar_request, 0.7)
+            time.sleep(0.3)
         accounts = lzt_api_get_market_list(DataValues.token, DataValues.link)
-        print(accounts)
-        time.sleep(3)
+        request_log.insert("0.0", f"[REQUEST] | {DataValues.link}.replace('lzt.market', 'api.lzt.market')\n[RESPONSE] | [TOO BIG]\n\n")
         if accounts is None:
             continue
         for iterable in range(0, min(accounts.get("totalItems"), accounts.get("perPage")) - 1):
             item = accounts.get("items")[iterable]
             if DataValues.balance < item.get("price"):
                 continue
+            for i in range(0, 3):
+                beautiful_step_anim(progressbar_request, 0.7)
+                time.sleep(0.3)
             res = lzt_api_buy_account(DataValues.token, item.get("item_id"), item.get("price"),
                                       DataValues.fastbuy)
+            request_log.insert("0.0",
+                f"[REQUEST] | https://api.lzt.market/{item.get('item_id')}/fast-buy\n[RESPONSE] | {res}\n\n")
             if res is not False:
-                dpg.set_value("Log", f"[LIST #{iterable}] {res}")
+                request_log.insert('0.0', res)
+                account_links.insert('0.0', f"https://lzt.market/{item.get('item_id')}/\n\n")
                 DataValues.balance -= item.get("price")
                 DataValues.money += item.get("price")
                 DataValues.curr_amount += 1
                 DataValues.bot.send_message(chat_id=DataValues.telegram_id,
-                                 text=f"<b> ~ NeverSeller ~ </b>\n\n"
-                                      f"<i> - Аккаунт куплен! -\n</i>"
-                                      f"    └ <i>Название товара:</i> <code>{item.get('title')}</code>\n"
-                                      f"    └ <i>Цена товара:</i> <code>{item.get('price')}</code>\n"
-                                      f"    └ <i>Ссылка на товар:</i> https://lzt.market/{item.get('item_id')}/\n"
-                                      f"\n"
-                                      f"<i>- Обновление пользовательской информации! -</i>\n"
-                                      f"    └ <i>Ваш баланс:</i> <code>{DataValues.balance}</code>\n"
-                                      f"    └ <i>Общее кол-во денег, потраченных на аккаунты:</i> <code>{DataValues.money}</code>\n"
-                                      f"    └ <i>Куплено аккаунтов</i> <code>{DataValues.curr_amount}</code> <i>из</i> <code>{DataValues.account_amount}</code>!",
-                                 parse_mode="html")
+                                            text=f"<i> - Аккаунт куплен! -\n</i>"
+                                                 f"    └ <i>Название товара:</i> <code>{item.get('title')}</code>\n"
+                                                 f"    └ <i>Цена товара:</i> <code>{item.get('price')}</code>\n"
+                                                 f"    └ <i>Ссылка на товар:</i> https://lzt.market/{item.get('item_id')}/\n"
+                                                 f"\n"
+                                                 f"<i>- Обновление пользовательской информации! -</i>\n"
+                                                 f"    └ <i>Ваш баланс:</i> <code>{DataValues.balance}</code>\n"
+                                                 f"    └ <i>Общее кол-во денег, потраченных на аккаунты:</i> <code>{DataValues.money}</code>\n"
+                                                 f"    └ <i>Куплено аккаунтов</i> <code>{DataValues.curr_amount}</code> <i>из</i> <code>{DataValues.account_amount}</code>!\n"
+                                                 f"\n <code>NeverSeller v1.4.0</code>",
+                                            parse_mode="html")
+                progressbar_all.step()
                 break
             else:
-                dpg.set_value("Log", f"[LIST #{iterable}] [ACCOUNT ERROR | CHECKING NEW]")
-    dpg.set_value("Log", ":: {Work Completed} ::")
-    dpg.configure_item(item="Button", label="[START WORK]", callback=callback_x)
+                error_log.insert("0.0", f"[LIST #{iterable}] [ACCOUNT ERROR | CHECKING NEW]")
+    enable_everything()
+    button.configure(text="START")
 
 
-def flag(sender):
-    DataValues.fastbuy = not DataValues.fastbuy
+button = customtkinter.CTkButton(app, text="START", command=start_event, width=330, font=app.NameFont,
+                                 fg_color="gray", hover_color="black")
+button.place(relx=0.58, rely=0.68)
 
+progressbar_request = customtkinter.CTkProgressBar(app, orientation="horizontal", width=330, progress_color="gray",
+                                                   determinate_speed=float(50) / 3, mode="determinate")
+progressbar_request.set(0)
+progressbar_request.place(relx=0.58, rely=0.78)
 
-def buy_flag(sender):
-    DataValues.check = not DataValues.check
+progressbar_all = customtkinter.CTkProgressBar(app, orientation="horizontal", width=330, progress_color="white",
+                                               determinate_speed=50, mode="determinate")
+progressbar_all.set(0)
+progressbar_all.place(relx=0.58, rely=0.84)
 
-
-def callback_x(sender):
-    if DataValues.token == '\"SOME TOKEN\"':
-        dpg.set_value("Checker", "[THAT'S EXAMPLE TOKEN]")
-        return
-    elif DataValues.telegram_id == -1:
-        dpg.set_value("Checker", "[THAT'S EXAMPLE TELEGRAM ID]")
-        return
-    elif DataValues.link == '\"SOME LINK\"':
-        dpg.set_value("Checker", "[THAT'S EXAMPLE LINK]")
-        return
-    elif DataValues.TGtoken == '\"SOME TOKEN\"':
-        dpg.set_value("Checker", "[THAT'S EXAMPLE TELEGRAM TOKEN]")
-        return
-
-    if DataValues.account_amount == 0:
-        dpg.set_value("Checker", "[ZERO ACCOUNTS]")
-        return
-
-    try:
-        DataValues.bot = telebot.TeleBot(DataValues.TGtoken)
-    except:
-        dpg.set_value("Checker", "[NO INTERNET CONNECTION ON YOUR PC / WRONG TELEGRAM BOT TOKEN]")
-        return
-
-    try:
-        DataValues.bot.send_message(chat_id=DataValues.telegram_id, text=f"<b>Автоскуп начал свою работу!</b>", parse_mode='HTML')
-    except:
-        dpg.set_value("Checker", "[NO INTERNET CONNECTION ON YOUR PC / WRONG TELEGRAM ID]")
-        return
-
-    DataValues.work_stage += 1
-    dpg.configure_item(item="Button", label="[CHECKING TOKEN]", callback=None)
-    DataValues.lzt_name = lzt_api_get_user_name(DataValues.token)
-    DataValues.balance = DataValues.lzt_name[2]
-    time.sleep(3)
-    if DataValues.check:
-        with dpg.window(label="[LOLZ USERNAME CHECKER]", width=420, height=170) as my_window:
-            dpg.configure_item(my_window, show=True)
-            dpg.add_input_text(label=f"[LOLZ USERNAME]", default_value=f"{DataValues.lzt_name[0]}")
-            dpg.add_input_text(label=f"[LOLZ LINK]", default_value=f"https://zelenka.guru/{DataValues.lzt_name[1]}/")
-            dpg.add_input_text(label=f"[LOLZ BALANCE]", default_value=f"{DataValues.balance}")
-            dpg.add_text("")
-            dpg.add_text(f"If any of following information is incorrect, then")
-            dpg.add_text(f"re-open the program and re-enter your LOLZ token.")
-
-    if DataValues.lzt_name[0] == "WRONG TOKEN / ERROR":
-        dpg.set_value("Checker", "[WRONG TOKEN | ACCOUNT PARSE ERROR]")
-        dpg.configure_item(item="Button", label="[START WORK]", callback=callback_x)
-        return
-    else:
-        time.sleep(3)
-        account_info = lzt_api_get_market_list(DataValues.token, DataValues.link)
-        if account_info is None or account_info.get("totalItems") == 0:
-            dpg.set_value("Checker", "[WRONG LINK / NO ITEMS] :: CHANGING LINK IS RECOMMENDED")
-        if DataValues.check:
-            with dpg.window(label="[LOLZ ITEM CHECKER]", width=420, height=215, pos=[0, 170]) as my_window:
-                dpg.configure_item(my_window, show=True)
-                if account_info is None or account_info.get("totalItems") == 0:
-                    dpg.add_text("[WRONG LINK / NO ITEMS]")
-                    dpg.add_text("")
-                    dpg.add_text(f"This is a random account by your filters.")
-                    dpg.add_text(f"If any of following information is incorrect, then")
-                    dpg.add_text(f"re-open the program and re-enter your link.")
-                else:
-                    item = account_info.get("items")[
-                        random.randint(0, min(account_info.get("totalItems"), account_info.get("perPage")) - 1)]
-                    print(item)
-                    dpg.add_input_text(label=f"[ITEM NAME]", default_value=item.get("title"))
-                    dpg.add_input_text(label=f"[ITEM PRICE]", default_value=str(item.get("price")))
-                    dpg.add_input_text(label=f"[ITEM ORIGIN]", default_value=str(item.get("item_origin")))
-                    dpg.add_input_text(label=f"[ITEM LINK]", default_value=f"https://lzt.market/{item.get('item_id')}/")
-                    dpg.add_text("")
-                    dpg.add_text(f"This is a random account by your filters.")
-                    dpg.add_text(f"If any of following information is incorrect, then")
-                    dpg.add_text(f"re-open the program and re-enter your link.")
-
-    dpg.configure_item(item="Button", label="[ALL INFO IS CORRECT] [START WORK]", callback=working)
-    return
-
-
-with dpg.window(tag="Primary Window", label="Tutorial", width=200, height=200):
-    dpg.add_text("[PRIVATE USE ONLY] [MADE BY NVRTHLSH] [CONTACT IF ANY PROBLEMS OCCUR]\n\n\n\n\n")
-    slider_int = dpg.add_slider_int(label="[ACCOUNT AMMOUNT]", width=324, default_value=0, max_value=100,
-                                    callback=account)
-    dpg.add_checkbox(label="[FAST-BUY] [NO CHECK FOR VALID] [FASTER]", callback=flag)
-    dpg.add_checkbox(label="[NO ITEM AND USER BEFORE BUYING CHECK]", callback=buy_flag)
-    dpg.add_text(" ")
-    dpg.add_input_text(label="[LOLZ TOKEN]", default_value="\"SOME TOKEN\"", callback=Token)
-    dpg.add_input_text(label="[TELEGRAM ID]", default_value="\"SOME ID\"", callback=TGId)
-    dpg.add_input_text(label="[ACCOUNTS LINK]", default_value="\"SOME LINK\"", callback=Link)
-    dpg.add_input_text(label="[TELEGRAM BOT TOKEN]", default_value="\"SOME TOKEN\"", callback=TGToken)
-    dpg.add_text(" ")
-    dpg.add_text("[ERROR LOG]", tag="Checker")
-    dpg.add_text(" ")
-    dpg.add_text(":: {Print-Log} ::", tag="Log")
-    dpg.add_text(" ")
-    dpg.add_button(label="[START WORK]", width=484, height=50, callback=callback_x, tag="Button")
-
-dpg.create_viewport(title='NeverSeller V1.2.2 (e14134111)', width=515, height=476)
-dpg.setup_dearpygui()
-dpg.set_viewport_resizable(False)
-dpg.set_viewport_clear_color(2)
-dpg.show_viewport()
-dpg.set_primary_window("Primary Window", True)
-dpg.start_dearpygui()
-dpg.destroy_context()
+app.mainloop()
