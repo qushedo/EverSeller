@@ -69,7 +69,7 @@ class ToplevelWindowUsername(customtkinter.CTkToplevel):
         self.textbox1 = customtkinter.CTkTextbox(self, width=300, height=220, font=app.CodeFont, text_color='gray')
         self.textbox1.insert("0.0", "Проверьте, пожалуйста, корректность следующих данных:\n"
                                     f"Ваш ник на форуме: {DataValues.lzt_name[0]}\n"
-                                    f"Ссылка на вашу страницу: https://zelenka.guru/{DataValues.lzt_name[1]}/\n"
+                                    f"Ссылка на вашу страницу: {DataValues.lzt_name[1]}\n"
                                     f"Ваш нынешний баланс: {DataValues.balance};\n\n"
                                     f"Если какая-либо из введённой информации неверна - нажмите на кнопку: \"Ошибка\", а затем заново введите её в соответствующем поле.")
         self.textbox1.place(x=50, y=20)
@@ -360,6 +360,7 @@ def start_event():
     DataValues.error_text = ''
 
     DataValues.lzt_name = lzt_api_get_user_name(DataValues.token)
+    print(DataValues.lzt_name)
     DataValues.balance = DataValues.lzt_name[2]
     request_log.insert("0.0", f"[REQUEST] | GET https://api.lzt.market/me\n[RESULT] | \"{DataValues.lzt_name[3]}\"\n\n")
 
@@ -477,7 +478,7 @@ def open_data():
     lolz_token.delete("0", "end")
     lolz_link.delete("0", "end")
     TG_token.delete("0", "end")
-    TG_id.delete("ut0", "end")
+    TG_id.delete("0", "end")
     lolz_token.insert("end", DataValues.token)
     lolz_link.insert("end", DataValues.link)
     TG_token.insert("end", DataValues.TGtoken)
