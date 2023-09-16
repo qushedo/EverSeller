@@ -1,6 +1,7 @@
 import json
 import random
 import time
+import tkinter
 from pathlib import Path
 
 import pyglet
@@ -10,7 +11,6 @@ from app import App, customtkinter
 from market_buy_account import lzt_api_buy_account
 from market_list_request import lzt_api_get_market_list
 from user_page_request import lzt_api_get_user_name
-
 
 pyglet.options['win32_gdi_font'] = True
 fontpath = Path(__file__).parent / 'microgrammad_boldexte.ttf'
@@ -271,7 +271,7 @@ def beautiful_step_anim(obj, time1):
     print(time_to_go)
     for i in range(0, 100):
         obj.step()
-        preco_sleep(time_to_go)
+        tkinter.Tk.after(app, int(time1) * 100)
         app.update()
     obj.configure(determinate_speed=origin_speed)
 
@@ -302,6 +302,9 @@ def enable_everything():
 
 
 def start_event():
+    for i in range(0, 3):
+        beautiful_step_anim(progressbar_request, 0.7)
+        tkinter.Tk.after(app, 700)
     error_log.delete("0.0", "end")
     DataValues.token = lolz_token.get()
     DataValues.link = lolz_link.get()
@@ -346,7 +349,7 @@ def start_event():
         DataValues.bot.send_message(chat_id=DataValues.telegram_id,
                                     text=f"<b>Данное сообщение служит для проверки корректности введённого токена бота и Telegram ID.\n</b>"
                                          f"<i>Если вам пришло данное сообщение, то это означает, что всё работает корректно.</i>\n\n"
-                                         f"<code>[NeverSeller v1.4.0]</code>",
+                                         f"<code>[NeverSeller v1.4.1]</code>",
                                     parse_mode='HTML')
     except:
         DataValues.error_text += "[ERROR] | Бота с данным токеном не сущестует / Вы не подключены к интернету!" \
@@ -388,7 +391,7 @@ def check_number_2(username_correct):
     if DataValues.check:
         for i in range(0, 3):
             beautiful_step_anim(progressbar_request, 0.7)
-            preco_sleep(0.3)
+            tkinter.Tk.after(app, 700)
         progressbar_request.set(0)
         if DataValues.toplevel_ is None or not DataValues.toplevel_.winfo_exists():
             DataValues.toplevel_ = ToplevelWindowLink(app)
@@ -403,7 +406,7 @@ def check_number_3(link_correct):
     if link_correct:
         for i in range(0, 3):
             beautiful_step_anim(progressbar_request, 0.7)
-            preco_sleep(0.3)
+            tkinter.Tk.after(app, 700)
 
     else:
         enable_everything()
@@ -416,7 +419,7 @@ def working():
     while DataValues.curr_amount < DataValues.account_amount:
         for i in range(0, 3):
             beautiful_step_anim(progressbar_request, 0.7)
-            preco_sleep(0.3)
+            tkinter.Tk.after(app, 700)
         accounts = lzt_api_get_market_list(DataValues.token, DataValues.link)
         request_log.insert("0.0",
                            f"[REQUEST] | {DataValues.link}.replace('lzt.market', 'api.lzt.market')\n[RESPONSE] | [TOO BIG]\n\n")
@@ -428,7 +431,7 @@ def working():
                 continue
             for i in range(0, 3):
                 beautiful_step_anim(progressbar_request, 0.7)
-                preco_sleep(0.3)
+                tkinter.Tk.after(app, 700)
             res = lzt_api_buy_account(DataValues.token, item.get("item_id"), item.get("price"),
                                       DataValues.fastbuy)
             request_log.insert("0.0",
@@ -449,7 +452,7 @@ def working():
                                                  f"    └ <i>Ваш баланс:</i> <code>{DataValues.balance}</code>\n"
                                                  f"    └ <i>Общее кол-во денег, потраченных на аккаунты:</i> <code>{DataValues.money}</code>\n"
                                                  f"    └ <i>Куплено аккаунтов</i> <code>{DataValues.curr_amount}</code> <i>из</i> <code>{DataValues.account_amount}</code>!\n"
-                                                 f"\n <code>NeverSeller v1.4.0</code>",
+                                                 f"\n <code>NeverSeller v1.4.1</code>",
                                             parse_mode="html")
                 progressbar_all.step()
                 break
