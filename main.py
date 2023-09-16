@@ -1,12 +1,16 @@
-from app import App, customtkinter
-import time
+import json
 import random
-import telebot
-from user_page_request import lzt_api_get_user_name
-from market_list_request import lzt_api_get_market_list
-from market_buy_account import lzt_api_buy_account
-import pyglet
+import time
 from pathlib import Path
+
+import pyglet
+import telebot
+
+from app import App, customtkinter
+from market_buy_account import lzt_api_buy_account
+from market_list_request import lzt_api_get_market_list
+from user_page_request import lzt_api_get_user_name
+
 
 pyglet.options['win32_gdi_font'] = True
 fontpath = Path(__file__).parent / 'microgrammad_boldexte.ttf'
@@ -15,6 +19,7 @@ fontpath = Path(__file__).parent / 'CascadiaCode.ttf'
 pyglet.font.add_file(str(fontpath))
 fontpath = Path(__file__).parent / 'CascadiaMono.ttf'
 pyglet.font.add_file(str(fontpath))
+
 
 def _onKeyRelease(event):
     ctrl = (event.state & 0x4) != 0
@@ -114,7 +119,7 @@ class ToplevelWindowLink(customtkinter.CTkToplevel):
             self.textbox1.insert("0.0",
                                  "Перед вами описание случайного товара с первой страницы товаров, соответствующих вашему фильтру:\n"
                                  f"Название товара: {item.get('title')}\n"
-                                 f"Ссылка на страницу товара: https://zelenka.guru/{item.get('item_id')}/\n"
+                                 f"Ссылка на страницу товара: https://lzt.market/{item.get('item_id')}/\n"
                                  f"Происхождение товара: {item.get('item_origin')}\n"
                                  f"Цена товара: {item.get('price')};\n\n"
                                  f"Если какая-либо из введённой информации неверна - нажмите на кнопку: \"Ошибка\", а затем заново введите её в соответствующем поле.")
@@ -152,7 +157,7 @@ program_del = customtkinter.CTkLabel(master=app, text="-" * 1000, bg_color="tran
 program_del.place(x=0, y=20)
 program_name.grid(row=0, column=0, columnspan=10, sticky="n")
 
-program_name1 = customtkinter.CTkLabel(master=app, text=" | V 1.4.0" * 20, bg_color="transparent",
+program_name1 = customtkinter.CTkLabel(master=app, text=" | V 1.4.1" * 20, bg_color="transparent",
                                        font=app.NameFont)
 program_del1 = customtkinter.CTkLabel(master=app, text="-" * 1000, bg_color="transparent", font=app.NameFont)
 program_del1.grid(row=19, column=1, columnspan=10, sticky="s")
@@ -237,8 +242,8 @@ def account_amount_callback(value):
     account_amount_amo.configure(text=f"[{str(value)[:-2]}]")
 
 
-account_amount = customtkinter.CTkSlider(app, from_=0, to=100, command=account_amount_callback, number_of_steps=100,
-                                         width=200, button_color="gray", button_hover_color="white",
+account_amount = customtkinter.CTkSlider(app, from_=0, to=150, command=account_amount_callback, number_of_steps=100,
+                                         width=220, button_color="gray", button_hover_color="white",
                                          progress_color="gray",
                                          )
 account_amount.place(relx=0.71, rely=0.58)
@@ -251,14 +256,22 @@ account_amount_amo = customtkinter.CTkLabel(master=app, text="[0]", bg_color="tr
 account_amount_amo.place(relx=0.655, rely=0.565)
 
 
+def preco_sleep(wait):
+    timer = time.time()
+    while timer + wait > time.time():  # wait is your sleep time
+        pass
+    return
+
+
 def beautiful_step_anim(obj, time1):
     origin_speed = obj.cget("determinate_speed")
     step = float(obj.cget("determinate_speed")) / 100
     obj.configure(determinate_speed=step)
     time_to_go = float(time1) / 100
+    print(time_to_go)
     for i in range(0, 100):
         obj.step()
-        time.sleep(time_to_go)
+        preco_sleep(time_to_go)
         app.update()
     obj.configure(determinate_speed=origin_speed)
 
@@ -374,7 +387,7 @@ def check_number_2(username_correct):
     if DataValues.check:
         for i in range(0, 3):
             beautiful_step_anim(progressbar_request, 0.7)
-            time.sleep(0.3)
+            preco_sleep(0.3)
         progressbar_request.set(0)
         if DataValues.toplevel_ is None or not DataValues.toplevel_.winfo_exists():
             DataValues.toplevel_ = ToplevelWindowLink(app)
@@ -389,7 +402,7 @@ def check_number_3(link_correct):
     if link_correct:
         for i in range(0, 3):
             beautiful_step_anim(progressbar_request, 0.7)
-            time.sleep(0.3)
+            preco_sleep(0.3)
 
     else:
         enable_everything()
@@ -402,9 +415,10 @@ def working():
     while DataValues.curr_amount < DataValues.account_amount:
         for i in range(0, 3):
             beautiful_step_anim(progressbar_request, 0.7)
-            time.sleep(0.3)
+            preco_sleep(0.3)
         accounts = lzt_api_get_market_list(DataValues.token, DataValues.link)
-        request_log.insert("0.0", f"[REQUEST] | {DataValues.link}.replace('lzt.market', 'api.lzt.market')\n[RESPONSE] | [TOO BIG]\n\n")
+        request_log.insert("0.0",
+                           f"[REQUEST] | {DataValues.link}.replace('lzt.market', 'api.lzt.market')\n[RESPONSE] | [TOO BIG]\n\n")
         if accounts is None:
             continue
         for iterable in range(0, min(accounts.get("totalItems"), accounts.get("perPage")) - 1):
@@ -413,11 +427,11 @@ def working():
                 continue
             for i in range(0, 3):
                 beautiful_step_anim(progressbar_request, 0.7)
-                time.sleep(0.3)
+                preco_sleep(0.3)
             res = lzt_api_buy_account(DataValues.token, item.get("item_id"), item.get("price"),
                                       DataValues.fastbuy)
             request_log.insert("0.0",
-                f"[REQUEST] | https://api.lzt.market/{item.get('item_id')}/fast-buy\n[RESPONSE] | {res}\n\n")
+                               f"[REQUEST] | https://api.lzt.market/{item.get('item_id')}/fast-buy\n[RESPONSE] | {res}\n\n")
             if res is not False:
                 request_log.insert('0.0', res)
                 account_links.insert('0.0', f"https://lzt.market/{item.get('item_id')}/\n\n")
@@ -444,9 +458,43 @@ def working():
     button.configure(text="START")
 
 
-button = customtkinter.CTkButton(app, text="START", command=start_event, width=330, font=app.NameFont,
+def save_data():
+    with open('data.json', 'w', encoding='utf-8') as f:
+        data = {"token": DataValues.token,
+                "link": DataValues.link,
+                "tg_bot": DataValues.TGtoken,
+                "tg_id": DataValues.telegram_id}
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+def open_data():
+    with open('data.json', 'r', encoding='utf-8') as f:
+        data = json.loads(f.read())
+        DataValues.token = data["token"]
+        DataValues.link = data["link"]
+        DataValues.TGtoken = data["tg_bot"]
+        DataValues.telegram_id = data["tg_id"]
+    lolz_token.delete("0", "end")
+    lolz_link.delete("0", "end")
+    TG_token.delete("0", "end")
+    TG_id.delete("ut0", "end")
+    lolz_token.insert("end", DataValues.token)
+    lolz_link.insert("end", DataValues.link)
+    TG_token.insert("end", DataValues.TGtoken)
+    TG_id.insert("end", DataValues.telegram_id)
+
+
+button = customtkinter.CTkButton(app, text="START", command=start_event, width=150, font=app.NameFont,
                                  fg_color="gray", hover_color="black")
 button.place(relx=0.58, rely=0.68)
+
+save_b = customtkinter.CTkButton(app, text="SAVE", command=save_data, width=75, font=app.NameFont,
+                                 fg_color="gray", hover_color="black")
+save_b.place(relx=0.775, rely=0.68)
+
+load_b = customtkinter.CTkButton(app, text="LOAD", command=open_data, width=75, font=app.NameFont,
+                                 fg_color="gray", hover_color="black")
+load_b.place(relx=0.88, rely=0.68)
 
 progressbar_request = customtkinter.CTkProgressBar(app, orientation="horizontal", width=330, progress_color="gray",
                                                    determinate_speed=float(50) / 3, mode="determinate")
