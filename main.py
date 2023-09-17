@@ -302,9 +302,6 @@ def enable_everything():
 
 
 def start_event():
-    for i in range(0, 3):
-        beautiful_step_anim(progressbar_request, 0.7)
-        tkinter.Tk.after(app, 700)
     error_log.delete("0.0", "end")
     DataValues.token = lolz_token.get()
     DataValues.link = lolz_link.get()
@@ -464,10 +461,10 @@ def working():
 
 def save_data():
     with open('data.json', 'w', encoding='utf-8') as f:
-        data = {"token": DataValues.token,
-                "link": DataValues.link,
-                "tg_bot": DataValues.TGtoken,
-                "tg_id": DataValues.telegram_id}
+        data = {"token": lolz_token.get(),
+                "link": lolz_link.get(),
+                "tg_bot": TG_token.get(),
+                "tg_id": TG_id.get()}
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 
