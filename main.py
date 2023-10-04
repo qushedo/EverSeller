@@ -157,7 +157,7 @@ program_del = customtkinter.CTkLabel(master=app, text="-" * 1000, bg_color="tran
 program_del.place(x=0, y=20)
 program_name.grid(row=0, column=0, columnspan=10, sticky="n")
 
-program_name1 = customtkinter.CTkLabel(master=app, text=" | V 1.4.1" * 20, bg_color="transparent",
+program_name1 = customtkinter.CTkLabel(master=app, text=" | V 1.4.2" * 20, bg_color="transparent",
                                        font=app.NameFont)
 program_del1 = customtkinter.CTkLabel(master=app, text="-" * 1000, bg_color="transparent", font=app.NameFont)
 program_del1.grid(row=19, column=1, columnspan=10, sticky="s")
@@ -271,7 +271,7 @@ def beautiful_step_anim(obj, time1):
     print(time_to_go)
     for i in range(0, 100):
         obj.step()
-        tkinter.Tk.after(app, int(time1) * 100)
+        tkinter.Tk.after(app, int(time1))
         app.update()
     obj.configure(determinate_speed=origin_speed)
 
@@ -346,7 +346,8 @@ def start_event():
         DataValues.bot.send_message(chat_id=DataValues.telegram_id,
                                     text=f"<b>Данное сообщение служит для проверки корректности введённого токена бота и Telegram ID.\n</b>"
                                          f"<i>Если вам пришло данное сообщение, то это означает, что всё работает корректно.</i>\n\n"
-                                         f"<code>[NeverSeller v1.4.1]</code>",
+                                         f"<i>Если вам пришло данное сообщение, то это означает, что всё работает корректно.</i>\n\n"
+                                         f"<code>[NeverSeller v1.4.2]</code>",
                                     parse_mode='HTML')
     except:
         DataValues.error_text += "[ERROR] | Бота с данным токеном не сущестует / Вы не подключены к интернету!" \
@@ -388,7 +389,7 @@ def check_number_2(username_correct):
     if DataValues.check:
         for i in range(0, 3):
             beautiful_step_anim(progressbar_request, 0.7)
-            tkinter.Tk.after(app, 700)
+            tkinter.Tk.after(app, 1000)
         progressbar_request.set(0)
         if DataValues.toplevel_ is None or not DataValues.toplevel_.winfo_exists():
             DataValues.toplevel_ = ToplevelWindowLink(app)
@@ -403,7 +404,7 @@ def check_number_3(link_correct):
     if link_correct:
         for i in range(0, 3):
             beautiful_step_anim(progressbar_request, 0.7)
-            tkinter.Tk.after(app, 700)
+            tkinter.Tk.after(app, 1000)
 
     else:
         enable_everything()
@@ -416,19 +417,20 @@ def working():
     while DataValues.curr_amount < DataValues.account_amount:
         for i in range(0, 3):
             beautiful_step_anim(progressbar_request, 0.7)
-            tkinter.Tk.after(app, 700)
+            tkinter.Tk.after(app, 1000)
         accounts = lzt_api_get_market_list(DataValues.token, DataValues.link)
         request_log.insert("0.0",
                            f"[REQUEST] | {DataValues.link}.replace('lzt.market', 'api.lzt.market')\n[RESPONSE] | [TOO BIG]\n\n")
         if accounts is None:
             continue
-        for iterable in range(0, min(accounts.get("totalItems"), accounts.get("perPage")) - 1):
+        for iterable in range(0, min(accounts.get("totalItems"), accounts.get("perPage"))):
             item = accounts.get("items")[iterable]
+            print(item)
             if DataValues.balance < item.get("price"):
                 continue
             for i in range(0, 3):
                 beautiful_step_anim(progressbar_request, 0.7)
-                tkinter.Tk.after(app, 700)
+                tkinter.Tk.after(app, 1000)
             res = lzt_api_buy_account(DataValues.token, item.get("item_id"), item.get("price"),
                                       DataValues.fastbuy)
             request_log.insert("0.0",
@@ -449,7 +451,7 @@ def working():
                                                  f"    └ <i>Ваш баланс:</i> <code>{DataValues.balance}</code>\n"
                                                  f"    └ <i>Общее кол-во денег, потраченных на аккаунты:</i> <code>{DataValues.money}</code>\n"
                                                  f"    └ <i>Куплено аккаунтов</i> <code>{DataValues.curr_amount}</code> <i>из</i> <code>{DataValues.account_amount}</code>!\n"
-                                                 f"\n <code>NeverSeller v1.4.1</code>",
+                                                 f"\n <code>NeverSeller v1.4.2</code>",
                                             parse_mode="html")
                 progressbar_all.step()
                 break
