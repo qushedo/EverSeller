@@ -2,7 +2,7 @@ import customtkinter
 
 
 class App(customtkinter.CTk):
-    def __init__(self, size=(860, 500), name="NeverSeller v1.4.0"):
+    def __init__(self, size=(860, 500), name="EverSeller v1.0"):
         super().__init__()
         self.geometry(f"{size[0]}x{size[1]}")
         self.title(name)

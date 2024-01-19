@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import time
 import tkinter
@@ -8,6 +9,9 @@ import pyglet
 import telebot
 
 from app import App, customtkinter
+
+from LolzteamApi import LolzteamApi, Types
+
 from market_buy_account import lzt_api_buy_account
 from market_list_request import lzt_api_get_market_list
 from user_page_request import lzt_api_get_user_name
@@ -15,9 +19,9 @@ from user_page_request import lzt_api_get_user_name
 pyglet.options['win32_gdi_font'] = True
 fontpath = Path(__file__).parent / 'microgrammad_boldexte.ttf'
 pyglet.font.add_file(str(fontpath))
-fontpath = Path(__file__).parent / 'CascadiaCode.ttf'
+fontpath = Path(__file__).parent / 'CascadiaCode.otf'
 pyglet.font.add_file(str(fontpath))
-fontpath = Path(__file__).parent / 'CascadiaMono.ttf'
+fontpath = Path(__file__).parent / 'CascadiaMono.otf'
 pyglet.font.add_file(str(fontpath))
 
 
@@ -44,7 +48,7 @@ class DataValues:
     money = 0
     token = '\"SOME TOKEN\"'
     link = '\"SOME LINK\"'
-    lzt_name = ['', '', '', '']
+    lzt_profile = {}
     work_stage = 1
     telegram_id = -1
     balance = 0
@@ -68,8 +72,8 @@ class ToplevelWindowUsername(customtkinter.CTkToplevel):
         self.title("Username Checker")
         self.textbox1 = customtkinter.CTkTextbox(self, width=300, height=220, font=app.CodeFont, text_color='gray')
         self.textbox1.insert("0.0", "Проверьте, пожалуйста, корректность следующих данных:\n"
-                                    f"Ваш ник на форуме: {DataValues.lzt_name[0]}\n"
-                                    f"Ссылка на вашу страницу: {DataValues.lzt_name[1]}\n"
+                                    f"Ваш ник на форуме: {DataValues.lzt_profile["user"]["username"]}\n"
+                                    f"Ссылка на вашу страницу: {DataValues.lzt_profile["user"]["links"]["permalink"]}\n"
                                     f"Ваш нынешний баланс: {DataValues.balance};\n\n"
                                     f"Если какая-либо из введённой информации неверна - нажмите на кнопку: \"Ошибка\", а затем заново введите её в соответствующем поле.")
         self.textbox1.place(x=50, y=20)
@@ -102,7 +106,8 @@ class ToplevelWindowLink(customtkinter.CTkToplevel):
         self.maxsize(400, 400)
         self.minsize(400, 400)
         self.title("Link Checker")
-        account_info = lzt_api_get_market_list(DataValues.token, DataValues.link)
+        api = LolzteamApi(DataValues.token, language="en")
+        account_info = api.market.list.from_url(DataValues.link)
         request_log.insert("0.0",
                            f"[REQUEST] | GET {DataValues.link.replace('lzt.market', 'api.lzt.market')}\n[RESULT] | \"[TOO BIG]\"\n\n")
         self.textbox1 = customtkinter.CTkTextbox(self, width=300, height=300, font=app.CodeFont, text_color='gray')
@@ -152,12 +157,12 @@ for c in range(10):
 for r in range(20):
     app.rowconfigure(index=r, weight=1)
 
-program_name = customtkinter.CTkLabel(master=app, text=" | NEVERSELLER" * 10, bg_color="transparent", font=app.NameFont)
+program_name = customtkinter.CTkLabel(master=app, text=" | EVERSELLER" * 10, bg_color="transparent", font=app.NameFont)
 program_del = customtkinter.CTkLabel(master=app, text="-" * 1000, bg_color="transparent", font=app.NameFont)
 program_del.place(x=0, y=20)
 program_name.grid(row=0, column=0, columnspan=10, sticky="n")
 
-program_name1 = customtkinter.CTkLabel(master=app, text=" | V 1.4.2" * 20, bg_color="transparent",
+program_name1 = customtkinter.CTkLabel(master=app, text=" | V 1.0" * 20, bg_color="transparent",
                                        font=app.NameFont)
 program_del1 = customtkinter.CTkLabel(master=app, text="-" * 1000, bg_color="transparent", font=app.NameFont)
 program_del1.grid(row=19, column=1, columnspan=10, sticky="s")
@@ -185,6 +190,7 @@ lolz_label = customtkinter.CTkLabel(master=app, text="Токен с LOLZ:", bg_c
                                     font=app.CodeFont)
 lolz_label.grid(row=16, column=6, columnspan=2, sticky="nw", padx=5)
 lolz_token = customtkinter.CTkEntry(app, placeholder_text="LOLZ Token", font=app.CodeFont, width=300)
+lolz_token.configure(show='*')
 lolz_token.grid(row=16, column=7, columnspan=3, sticky="n", padx=30)
 
 lolz_link_label = customtkinter.CTkLabel(master=app, text="Ссылка-Фильтр:", bg_color="transparent",
@@ -326,6 +332,22 @@ def start_event():
         DataValues.error_text = ''
         return
 
+    api = LolzteamApi(DataValues.token, language="en")
+    DataValues.lzt_profile = api.market.profile.get()
+    try:
+        if DataValues.lzt_profile["error"] == "invalid_token":
+            DataValues.error_text += "[ERROR] | Неверный токен / Ошибка парса аккаунта / Вы не подключены к интернету!" \
+                                     "\n\n[CONCLUSION] | Запуск не возможен!\n\n"
+            error_log.insert(text=DataValues.error_text, index="0.0")
+            DataValues.error_text = ''
+            return
+    except KeyError:
+        pass
+
+    print(DataValues.lzt_profile["user"]["username"])
+    DataValues.balance = DataValues.lzt_profile['user']['balance']
+    request_log.insert("0.0", f"[REQUEST] | GET https://api.lzt.market/me\n[RESULT] | \"{DataValues.lzt_profile}\"\n\n")
+
     if DataValues.account_amount == 0:
         DataValues.error_text += "[ERROR] | Выбрано 0 аккаунтов для покупки!" \
                                  "\n\n[CONCLUSION] | Запуск не возможен!\n\n"
@@ -347,7 +369,7 @@ def start_event():
                                     text=f"<b>Данное сообщение служит для проверки корректности введённого токена бота и Telegram ID.\n</b>"
                                          f"<i>Если вам пришло данное сообщение, то это означает, что всё работает корректно.</i>\n\n"
                                          f"<i>Если вам пришло данное сообщение, то это означает, что всё работает корректно.</i>\n\n"
-                                         f"<code>[NeverSeller v1.4.2]</code>",
+                                         f"<code>[EverSeller v1.0]</code>",
                                     parse_mode='HTML')
     except:
         DataValues.error_text += "[ERROR] | Бота с данным токеном не сущестует / Вы не подключены к интернету!" \
@@ -359,18 +381,6 @@ def start_event():
     DataValues.error_text += "[WARNING] | Пожалуйста, проверьте, свой Telegram аккаунт! Вам должно прийти сообщение от вашего бота. Если оно пришло - всё работает корректно, иначе - остановите работу программы и введите данные заново.\n\n"
     error_log.insert(text=DataValues.error_text, index="0.0")
     DataValues.error_text = ''
-
-    DataValues.lzt_name = lzt_api_get_user_name(DataValues.token)
-    print(DataValues.lzt_name)
-    DataValues.balance = DataValues.lzt_name[2]
-    request_log.insert("0.0", f"[REQUEST] | GET https://api.lzt.market/me\n[RESULT] | \"{DataValues.lzt_name[3]}\"\n\n")
-
-    if DataValues.lzt_name[0] == "WRONG TOKEN / ERROR":
-        DataValues.error_text += "[ERROR] | Неверный токен / Ошибка парса аккаунта / Вы не подключены к интернету!" \
-                                 "\n\n[CONCLUSION] | Запуск не возможен!\n\n"
-        error_log.insert(text=DataValues.error_text, index="0.0")
-        DataValues.error_text = ''
-        return
 
     if DataValues.check:
         if DataValues.toplevel_ is None or not DataValues.toplevel_.winfo_exists():
@@ -414,11 +424,13 @@ def check_number_3(link_correct):
 
 def working():
     button.configure(text="WORKING")
+    api = LolzteamApi(DataValues.token, language="en")
+
     while DataValues.curr_amount < DataValues.account_amount:
         for i in range(0, 3):
             beautiful_step_anim(progressbar_request, 0.7)
             tkinter.Tk.after(app, 1000)
-        accounts = lzt_api_get_market_list(DataValues.token, DataValues.link)
+        accounts = api.market.list.from_url(DataValues.link)
         request_log.insert("0.0",
                            f"[REQUEST] | {DataValues.link}.replace('lzt.market', 'api.lzt.market')\n[RESPONSE] | [TOO BIG]\n\n")
         if accounts is None:
@@ -462,7 +474,11 @@ def working():
 
 
 def save_data():
-    with open('data.json', 'w', encoding='utf-8') as f:
+    appdata_path = os.getenv('APPDATA')
+    config_folder_path = os.path.join(appdata_path, 'EverSeller')
+    if not os.path.exists(config_folder_path):
+        os.makedirs(config_folder_path)
+    with open(os.path.join(config_folder_path, 'data.json'), 'w', encoding='utf-8') as f:
         data = {"token": lolz_token.get(),
                 "link": lolz_link.get(),
                 "tg_bot": TG_token.get(),
@@ -471,7 +487,12 @@ def save_data():
 
 
 def open_data():
-    with open('data.json', 'r', encoding='utf-8') as f:
+    appdata_path = os.getenv('APPDATA')
+    config_folder_path = os.path.join(appdata_path, 'EverSeller')
+    if not os.path.exists(os.path.join(config_folder_path, "data.json")):
+        return
+
+    with open(os.path.join(config_folder_path, 'data.json'), 'r', encoding='utf-8') as f:
         data = json.loads(f.read())
         DataValues.token = data["token"]
         DataValues.link = data["link"]
