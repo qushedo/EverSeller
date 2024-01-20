@@ -13,11 +13,11 @@ from app import App, customtkinter
 from LolzteamApi import LolzteamApi, Types
 
 pyglet.options['win32_gdi_font'] = True
-fontpath = Path(__file__).parent / 'microgrammad_boldexte.ttf'
+fontpath = Path(__file__).parent / 'fonts/microgrammad_boldexte.ttf'
 pyglet.font.add_file(str(fontpath))
-fontpath = Path(__file__).parent / 'CascadiaCode.otf'
+fontpath = Path(__file__).parent / 'fonts/CascadiaCode.otf'
 pyglet.font.add_file(str(fontpath))
-fontpath = Path(__file__).parent / 'CascadiaMono.otf'
+fontpath = Path(__file__).parent / 'fonts/CascadiaMono.otf'
 pyglet.font.add_file(str(fontpath))
 
 
