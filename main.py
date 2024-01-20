@@ -12,10 +12,6 @@ from app import App, customtkinter
 
 from LolzteamApi import LolzteamApi, Types
 
-from market_buy_account import lzt_api_buy_account
-from market_list_request import lzt_api_get_market_list
-from user_page_request import lzt_api_get_user_name
-
 pyglet.options['win32_gdi_font'] = True
 fontpath = Path(__file__).parent / 'microgrammad_boldexte.ttf'
 pyglet.font.add_file(str(fontpath))
@@ -137,7 +133,6 @@ class ToplevelWindowLink(customtkinter.CTkToplevel):
                                                  font=app.CodeFont,
                                                  fg_color="red", hover_color="red")
         self.inconfirm.place(x=290, y=350)
-        print(1)
 
     def confirmation(self):
         self.destroy()
@@ -274,7 +269,6 @@ def beautiful_step_anim(obj, time1):
     step = float(obj.cget("determinate_speed")) / 100
     obj.configure(determinate_speed=step)
     time_to_go = float(time1) / 100
-    print(time_to_go)
     for i in range(0, 100):
         obj.step()
         tkinter.Tk.after(app, int(time1))
@@ -378,7 +372,9 @@ def start_event():
         DataValues.error_text = ''
         return
 
-    DataValues.error_text += "[WARNING] | Пожалуйста, проверьте, свой Telegram аккаунт! Вам должно прийти сообщение от вашего бота. Если оно пришло - всё работает корректно, иначе - остановите работу программы и введите данные заново.\n\n"
+    DataValues.error_text += ("[WARNING] | Пожалуйста, проверьте, свой Telegram аккаунт! Вам должно прийти сообщение "
+                              "от вашего бота. Если оно пришло - всё работает корректно, иначе - остановите работу "
+                              "программы и введите данные заново.\n\n")
     error_log.insert(text=DataValues.error_text, index="0.0")
     DataValues.error_text = ''
 
@@ -443,8 +439,13 @@ def working():
             for i in range(0, 3):
                 beautiful_step_anim(progressbar_request, 0.7)
                 tkinter.Tk.after(app, 1000)
-            res = lzt_api_buy_account(DataValues.token, item.get("item_id"), item.get("price"),
-                                      DataValues.fastbuy)
+
+            res = api.market.purchasing.fast_buy(
+                item_id=item.get("get_item"),
+                price=item.get("price"),
+                buy_without_validation=DataValues.fastbuy
+            )
+
             request_log.insert("0.0",
                                f"[REQUEST] | https://api.lzt.market/{item.get('item_id')}/fast-buy\n[RESPONSE] | {res}\n\n")
             if res is not False:
@@ -463,7 +464,7 @@ def working():
                                                  f"    └ <i>Ваш баланс:</i> <code>{DataValues.balance}</code>\n"
                                                  f"    └ <i>Общее кол-во денег, потраченных на аккаунты:</i> <code>{DataValues.money}</code>\n"
                                                  f"    └ <i>Куплено аккаунтов</i> <code>{DataValues.curr_amount}</code> <i>из</i> <code>{DataValues.account_amount}</code>!\n"
-                                                 f"\n <code>NeverSeller v1.4.2</code>",
+                                                 f"\n <code>EverSeller v1.0</code>",
                                             parse_mode="html")
                 progressbar_all.step()
                 break
@@ -508,26 +509,27 @@ def open_data():
     TG_id.insert("end", DataValues.telegram_id)
 
 
-button = customtkinter.CTkButton(app, text="START", command=start_event, width=150, font=app.NameFont,
-                                 fg_color="gray", hover_color="black")
-button.place(relx=0.58, rely=0.68)
+if __name__ == '__main__':
+    button = customtkinter.CTkButton(app, text="START", command=start_event, width=150, font=app.NameFont,
+                                     fg_color="gray", hover_color="black")
+    button.place(relx=0.58, rely=0.68)
 
-save_b = customtkinter.CTkButton(app, text="SAVE", command=save_data, width=75, font=app.NameFont,
-                                 fg_color="gray", hover_color="black")
-save_b.place(relx=0.775, rely=0.68)
+    save_b = customtkinter.CTkButton(app, text="SAVE", command=save_data, width=75, font=app.NameFont,
+                                     fg_color="gray", hover_color="black")
+    save_b.place(relx=0.775, rely=0.68)
 
-load_b = customtkinter.CTkButton(app, text="LOAD", command=open_data, width=75, font=app.NameFont,
-                                 fg_color="gray", hover_color="black")
-load_b.place(relx=0.88, rely=0.68)
+    load_b = customtkinter.CTkButton(app, text="LOAD", command=open_data, width=75, font=app.NameFont,
+                                     fg_color="gray", hover_color="black")
+    load_b.place(relx=0.88, rely=0.68)
 
-progressbar_request = customtkinter.CTkProgressBar(app, orientation="horizontal", width=330, progress_color="gray",
-                                                   determinate_speed=float(50) / 3, mode="determinate")
-progressbar_request.set(0)
-progressbar_request.place(relx=0.58, rely=0.78)
+    progressbar_request = customtkinter.CTkProgressBar(app, orientation="horizontal", width=330, progress_color="gray",
+                                                       determinate_speed=float(50) / 3, mode="determinate")
+    progressbar_request.set(0)
+    progressbar_request.place(relx=0.58, rely=0.78)
 
-progressbar_all = customtkinter.CTkProgressBar(app, orientation="horizontal", width=330, progress_color="white",
-                                               determinate_speed=50, mode="determinate")
-progressbar_all.set(0)
-progressbar_all.place(relx=0.58, rely=0.84)
+    progressbar_all = customtkinter.CTkProgressBar(app, orientation="horizontal", width=330, progress_color="white",
+                                                   determinate_speed=50, mode="determinate")
+    progressbar_all.set(0)
+    progressbar_all.place(relx=0.58, rely=0.84)
 
-app.mainloop()
+    app.mainloop()
